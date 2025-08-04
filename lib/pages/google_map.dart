@@ -1,3 +1,5 @@
+import 'dart:async' show Completer;
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
@@ -10,13 +12,19 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-
+final Completer<GoogleMapController> _mapController = Completer<GoogleMapController>();
 Location _locationController = Location();
 
 
   static const LatLng _target = LatLng(22.36304, 87.97209);
   static const LatLng _mark = LatLng(22.36834, 87.97410);
   LatLng ?currentP;
+
+Future<void> _cameraToPosition(LatLng pos)async{
+  final GoogleMapController controller = await _mapController.future;
+  CameraPosition _newCameraPosition = CameraPosition(target: pos,zoom: 13);
+  controller.animateCamera(CameraUpdate.newCameraPosition(_newCameraPosition));
+}
 
 Future<void > getlocation()async{
    bool _serviceEnabled;
@@ -40,13 +48,17 @@ Future<void > getlocation()async{
   }
 
   _locationData = await _locationController.getLocation();
-  print(_locationData);
+  
   _locationController.onLocationChanged.listen((LocationData currentLocation) {
   
     if(currentLocation.latitude != null && currentLocation.longitude != null){
        setState(() {
       currentP = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-        print(currentLocation);
+      print("**********************************************");
+      print(currentP);
+      print("**********************************************");
+      _cameraToPosition(currentP!);
+        
     });
     }
     
@@ -64,7 +76,11 @@ Future<void > getlocation()async{
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body:currentP == null ? Center(child: CircularProgressIndicator(),) :  GoogleMap(initialCameraPosition: CameraPosition(target: _target, zoom: 13,),markers: {
+    return Scaffold(body:currentP == null ? Center(child: CircularProgressIndicator(),) :  GoogleMap(
+      onMapCreated: (GoogleMapController controller){
+        _mapController.complete(controller);
+      },
+      initialCameraPosition: CameraPosition(target: _target, zoom: 13,),markers: {
       Marker(markerId: MarkerId("_currentLocation"),position: currentP!,icon: BitmapDescriptor.defaultMarker,),
       Marker(markerId: MarkerId("_sourceLocation"),position: _mark,icon: BitmapDescriptor.defaultMarker,),
       Marker(markerId: MarkerId("_destinationLocation"),position: _target,icon: BitmapDescriptor.defaultMarker,),
